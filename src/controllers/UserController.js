@@ -2,14 +2,17 @@ const UserModel = require('../models/UserModel')
 const jwt = require('jsonwebtoken')
 const dotenv = require('dotenv').config()
 const JWT_SECRETKEY = process.env.JWT_SECRETKEY
-export const CreateUser = async (req, res) => {
+const bcrypt = require('bcrypt')
+
+module.exports.CreateUser = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     try {
         let data = req.body
-        
         if (Object.keys(req.body).length == 0) {
             return res.status(400).send({ status: false, message: "Please Enter data in body" })
         }
+        if (!data.Name || !data.Age || !data.City || !data.Zip_code || !data.password) return res.status(400).send({ status: false, message: "All fields are required" })
+
         const { Email, Name, Age, City, Zip_code, password } = data
 
         if (!Email) return res.status(400).send({ status: false, message: "Email require!" })
@@ -32,7 +35,7 @@ export const CreateUser = async (req, res) => {
     }
 }
 
-export const loginUser = async (req, res) => {
+module.exports.loginUser = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     try {
 
@@ -59,7 +62,7 @@ export const loginUser = async (req, res) => {
 }
 
 // Get
-export const GetUser = async (req, res) => {
+module.exports.GetUser = async (req, res) => {
     try {
         const findData = await UserModel.find({ isDeleted: false })
         if (!findData) return res.status(404).send({ status: false, message: "No user Found" })
@@ -72,9 +75,10 @@ export const GetUser = async (req, res) => {
 }
 
 //Get By Id
-export const GetUserById = async (req, res) => {
+module.exports.GetUserById = async (req, res) => {
     try {
         let userId = req.params.userId
+        if (!userId) return res.status(404).send({ status: false, message: "UserId require" })
 
         const findData = await UserModel.findById({ _id: userId, isDeleted: false })
         if (!findData) return res.status(404).send({ status: false, message: "no data found" })
@@ -85,15 +89,25 @@ export const GetUserById = async (req, res) => {
 }
 
 //update
-export const UpdateUser = async (req, res) => {
+module.exports.UpdateUser = async (req, res) => {
     try {
         let userId = req.params.userId
         let data = req.body
         const { Email, Name, Age, City, Zip_code, password } = data
 
+        // console.log(data)
+
+        if (Object.keys(req.body).length == 0) {
+            return res.status(400).send({ status: false, message: "Please Enter data in body" })
+        }
+
+        let checkEmail = await UserModel.findOne({Email})
+        // console.log("checkEmail:"+checkEmail)
+        if (checkEmail) return res.status(400).send({ status: false, message: "Email already exist!" })
+
         const CheckUserDetails = await UserModel.findById({ _id: userId, isDeleted: false })
         if (!CheckUserDetails) return res.status(400).send({ status: false, message: "User does not exist" })
-
+        // console.log(CheckUserDetails)
         const UpdateData = await UserModel.findByIdAndUpdate(userId, { $set: { Email: Email, Name: Name, Age: Age, City: City, Zip_code: Zip_code, password: password } }, { new: true })
 
         if (!UpdateData) return res.status(404).send({ status: false, message: "no data found" })
@@ -106,7 +120,7 @@ export const UpdateUser = async (req, res) => {
 }
 
 //Delete
-export const DeleteUser = async (req, res) => {
+module.exports.DeleteUser = async (req, res) => {
     try {
         let userId = req.params.userId
         const CheckUserDetails = await UserModel.findById({ _id: userId, isDeleted: false })
