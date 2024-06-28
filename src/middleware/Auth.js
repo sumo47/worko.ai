@@ -5,18 +5,20 @@ const dotenv = require('dotenv').config()
 JWT_SECRETKEY = process.env.JWT_SECRETKEY
 
 
-export const Authentication = async (req, res, next) => {
+module.exports.Authentication = async (req, res, next) => {
     try {
         let token = req.headers['work_ai-api-key']
         if (!token) return res.status(400).send({ status: false, message: "Please Login first -- token not present" })
 
-        let a = token.split(" ")[1]
+        let a = token.split(" ")[0]
+        // console.log(a)
 
         jwt.verify(a, JWT_SECRETKEY, (err, decode) => {
             if (err) {
                 return res.status(401).send({ status: false, message: err.message })
             } else {
                 req.decode = decode
+                // console.log(decode)
                 next()
             }
         })
@@ -25,14 +27,16 @@ export const Authentication = async (req, res, next) => {
     }
 }
 
-export const Authorisation = async (req, res, next) => {
+module.exports.Authorisation = async (req, res, next) => {
     try {
         let userId = req.params.userId
 
         if (!mongoose.isValidObjectId(userId)) return res.status(400).send({ status: false, message: 'userId is not valid' })
 
-        const findUser = await userModel.findById(userId)
+        const findUser = await UserModel.findById(userId)
         if (!findUser) return res.status(404).send({ status: false, message: 'no user present with this userId' })
+
+        // console.log(req.decode,userId)
 
         if (req.decode.userId !== userId) return res.status(403).send({ status: false, message: 'You are not authorised' })
 

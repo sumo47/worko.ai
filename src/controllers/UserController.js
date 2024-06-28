@@ -51,7 +51,7 @@ module.exports.loginUser = async (req, res) => {
         let password_Compare = await bcrypt.compare(data.password, validate_User.password)
         if (!password_Compare) return res.status(404).send({ status: false, message: "Invalid password!" })
 
-        let token = jwt.sign({ user_Id: validate_User.id }, JWT_SECRETKEY)
+        let token = jwt.sign({ userId: validate_User.id }, JWT_SECRETKEY)
         res.setHeader("atg-api-key", token)
 
         res.status(200).send({ status: true, message: "Login Successfull!", token: token })
@@ -101,8 +101,8 @@ module.exports.UpdateUser = async (req, res) => {
             return res.status(400).send({ status: false, message: "Please Enter data in body" })
         }
 
-        let checkEmail = await UserModel.findOne({Email})
-        // console.log("checkEmail:"+checkEmail)
+        let checkEmail = await UserModel.findOne({$and:{ Email: Email, isDeleted: false }})
+        // console.log("checkEmail:" + checkEmail)
         if (checkEmail) return res.status(400).send({ status: false, message: "Email already exist!" })
 
         const CheckUserDetails = await UserModel.findById({ _id: userId, isDeleted: false })
@@ -126,7 +126,7 @@ module.exports.DeleteUser = async (req, res) => {
         const CheckUserDetails = await UserModel.findById({ _id: userId, isDeleted: false })
         if (!CheckUserDetails) return res.status(400).send({ Status: false, message: "User Not found" })
 
-        await UserModel.findOneAndUpdate({ _id: id, isDeleted: false }, { $set: { isDeleted: true, DeletedAt: Date.now() } })
+        await UserModel.findOneAndUpdate({ _id: userId, isDeleted: false }, { $set: { isDeleted: true, DeletedAt: Date.now() } })
 
         return res.status(200).send({ status: true, message: "Profile deleted succesfully !" })
     } catch (error) {
