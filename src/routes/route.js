@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const  {CreateUser, GetUser, loginUser, GetUserById, UpdateUser, DeleteUser}  = require('../controllers/userController')
+const  {CreateUser, GetUser, loginUser, GetUserById, UpdateUser, DeleteUser, PatchUser}  = require('../controllers/userController')
 const { Authentication, Authorisation } = require('../middleware/Auth')
 
 router.post('/create', CreateUser)
@@ -10,6 +10,7 @@ router.get("/get",Authentication, GetUser)
 router.get('/getById/:userId',Authentication, Authorisation,GetUserById)
 
 router.put('/update/:userId',Authentication, Authorisation, UpdateUser)
+router.patch('/patch/:userId', Authentication, Authorisation, PatchUser)
 
 router.delete("/delete/:userId",Authentication, Authorisation, DeleteUser)
 

@@ -1,17 +1,24 @@
 const UserModel = require('../models/UserModel')
+const { UserJoi, loginJoi, UpdateJoi } = require('../validator/JoiValidator')
 const jwt = require('jsonwebtoken')
 const dotenv = require('dotenv').config()
 const JWT_SECRETKEY = process.env.JWT_SECRETKEY
 const bcrypt = require('bcrypt')
+const mongoose = require('mongoose')
 
 module.exports.CreateUser = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     try {
         let data = req.body
+
         if (Object.keys(req.body).length == 0) {
             return res.status(400).send({ status: false, message: "Please Enter data in body" })
         }
-        if (!data.Name || !data.Age || !data.City || !data.Zip_code || !data.password) return res.status(400).send({ status: false, message: "All fields are required" })
+
+        // if (!data.Name || !data.Age || !data.City || !data.Zip_code || !data.password) return res.status(400).send({ status: false, message: "All fields are required" })
+
+        const { error } = await UserJoi.validate(data)
+        if (error) return res.status(400).send({ status: false, message: error.details[0].message })
 
         const { Email, Name, Age, City, Zip_code, password } = data
 
@@ -42,8 +49,11 @@ module.exports.loginUser = async (req, res) => {
         let data = req.body
         const { Email, password } = data
 
-        if (!Email) return res.status(400).send({ status: false, message: "Email require" })
-        if (!data.password) return res.status(400).send({ status: false, message: "password require" })
+        // if (!Email) return res.status(400).send({ status: false, message: "Email require" })
+        // if (!data.password) return res.status(400).send({ status: false, message: "password require" })
+
+        let { error } = loginJoi.validate(data)
+        if (error) return res.status(400).send({ status: false, message: error.details[0].message })
 
         let validate_User = await UserModel.findOne({ Email: Email, isDeleted: false })
         if (!validate_User) return res.status(404).send({ status: false, message: "Invalid Email!" })
@@ -80,6 +90,8 @@ module.exports.GetUserById = async (req, res) => {
         let userId = req.params.userId
         if (!userId) return res.status(404).send({ status: false, message: "UserId require" })
 
+        if (!mongoose.isValidObjectId(userId)) return res.status(400).send({ status: false, message: "please enter valid userId in request body" })
+
         const findData = await UserModel.findById({ _id: userId, isDeleted: false })
         if (!findData) return res.status(404).send({ status: false, message: "no data found" })
         return res.status(200).send({ status: true, message: "User profile details", data: findData })
@@ -89,19 +101,24 @@ module.exports.GetUserById = async (req, res) => {
 }
 
 //update
-module.exports.UpdateUser = async (req, res) => {
+module.exports.PatchUser = async (req, res) => {
     try {
         let userId = req.params.userId
         let data = req.body
         const { Email, Name, Age, City, Zip_code, password } = data
 
-        // console.log(data)
+        console.log(data)
 
         if (Object.keys(req.body).length == 0) {
             return res.status(400).send({ status: false, message: "Please Enter data in body" })
         }
 
-        let checkEmail = await UserModel.findOne({$and:{ Email: Email, isDeleted: false }})
+        if (!mongoose.isValidObjectId(userId)) return res.status(400).send({ status: false, message: "please enter valid userId in request body" })
+
+        const { error } = await UpdateJoi.validate(data)
+        if (error) return res.status(400).send({ status: false, message: error.details[0].message })
+
+        let checkEmail = await UserModel.findOne({ $and: { Email: Email, isDeleted: false } })
         // console.log("checkEmail:" + checkEmail)
         if (checkEmail) return res.status(400).send({ status: false, message: "Email already exist!" })
 
@@ -118,13 +135,48 @@ module.exports.UpdateUser = async (req, res) => {
         return res.status(500).send({ status: false, message: error.message })
     }
 }
+module.exports.UpdateUser = async (req, res) => {
+    try {
+        let userId = req.params.userId
+        let data = req.body
+
+        console.log(data)
+
+        if (Object.keys(req.body).length == 0) {
+            return res.status(400).send({ status: false, message: "Please Enter data in body" })
+        }
+
+        if (!mongoose.isValidObjectId(userId)) return res.status(400).send({ status: false, message: "please enter valid userId in request body" })
+
+        const { error } = await UpdateJoi.validate(data)
+        if (error) return res.status(400).send({ status: false, message: error.details[0].message })
+
+        let checkEmail = await UserModel.findOne({ $and: { Email: data.Email, isDeleted: false } })
+        // console.log("checkEmail:" + checkEmail)
+        if (checkEmail) return res.status(400).send({ status: false, message: "Email already exist!" })
+
+        const CheckUserDetails = await UserModel.findById({ _id: userId, isDeleted: false })
+        if (!CheckUserDetails) return res.status(400).send({ status: false, message: "User does not exist" })
+        // console.log(CheckUserDetails)
+        const UpdateData = await UserModel.findByIdAndUpdate(userId, { $set: data }, { upsert: true })
+        if (!UpdateData) return res.status(404).send({ status: false, message: "no data found" })
+
+        return res.status(200).send({ status: true, message: "Updated User profile details", data: UpdateData })
+
+    } catch (error) {
+        return res.status(500).send({ status: false, message: error.message })
+    }
+}
 
 //Delete
 module.exports.DeleteUser = async (req, res) => {
     try {
         let userId = req.params.userId
+        
         const CheckUserDetails = await UserModel.findById({ _id: userId, isDeleted: false })
         if (!CheckUserDetails) return res.status(400).send({ Status: false, message: "User Not found" })
+
+        if (!mongoose.isValidObjectId(userId)) return res.status(400).send({ status: false, message: "please enter valid userId in request body" })
 
         await UserModel.findOneAndUpdate({ _id: userId, isDeleted: false }, { $set: { isDeleted: true, DeletedAt: Date.now() } })
 
